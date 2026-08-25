@@ -9,6 +9,11 @@ class Span:
     col: int
     length: int = 1
 
+    def to(self, other: "Span") -> "Span":
+        if other.line != self.line:
+            return self
+        return Span(self.line, self.col, max(1, other.col + other.length - self.col))
+
 class BorkError(Exception):
     def __init__(self, message: str, span: Span, filename: str = "<input>"):
         self.message = message
