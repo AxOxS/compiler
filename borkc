@@ -19,7 +19,7 @@ def cmd_tokens(path):
     try:
         for token in tokenize(source, path):
             value = "" if token.value is None else f"   {token.value!r}"
-            sys.stdout.write(f"{token.spn.line:>4}:{token.span.col:<4} {token.kind:<6}{value}\n")
+            sys.stdout.write(f"{token.span.line:>4}:{token.span.col:<4} {token.kind:<6}{value}\n")
     except BorkError as exc:
         sys.stderr.write(exc.render() + "\n")
         return 1
