@@ -1,0 +1,13 @@
+"""Entry point for Bork compiler"""
+import os, sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+USAGE = "usage: borkc <command> <file.bk>\n"
+
+def main(argv):
+    sys.stderr.write(USAGE)
+    return 2
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))
