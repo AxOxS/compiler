@@ -23,3 +23,13 @@ class BorkError(Exception):
 
     def render(self) -> str:
         return f"{self.filename}:{self.span.line}:{self.span.col}: error: {self.message}"
+
+class BorkRuntimeError(Exception):
+    "a trap raised by vm"
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(message)
+
+    def render(self) -> str:
+        return "runtime error: " + self.message
