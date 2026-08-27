@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from . import ast_nodes as A
-from .errors import BorkError, Span
+from .errors import Diagnostic, BorkError, Span
 from .lexer import Token, tokenize
 
 # Binary operator precedence
@@ -12,9 +12,10 @@ PRECEDENCE = {
 }
 
 class Parser:
-    def __init__(self, tokens: list[Token], filename: str = "<input>"):
+    def __init__(self, tokens: list[Token], source: str = "", filename: str = "<input>"):
         self.tokens = tokens
         self.pos = 0
+        self.source = source
         self.filename = filename
 
     # -- token helpers --------------------------------
@@ -35,7 +36,9 @@ class Parser:
         if self.current.kind == kind:
             return self._advance()
         raise self._error(f"expected '{kind}', found {self._describe(self.current)}",
-                          self.current.span)
+                          self.current.span,
+                          note = "the previous token ends at "
+                                f"line {self.tokens[self.pos - 1].span.line}")
 
     @staticmethod
     def _describe(tok: Token) -> str:
@@ -45,8 +48,8 @@ class Parser:
             return "int literal"
         return f"'{tok.kind}'"
 
-    def _error(self, message: str, span: Span) -> BorkError:
-        return BorkError(message, span, self.filename)
+    def _error(self, msg: str, span: Span, note: str | None = None) -> BorkError:
+        return BorkError([Diagnostic(msg, span, note=note)], self.source, self.filename)
 
     # -- entry point ----------------------------------------
     def parse_module(self) -> A.Module:
@@ -96,4 +99,4 @@ class Parser:
         raise self._error(f"expected an expression, found {self._describe(tok)}", tok.span)
 
 def parse(source: str, filename: str = "<input>") -> A.Module:
-    return Parser(tokenize(source, filename), filename).parse_module()
+    return Parser(tokenize(source, filename), source, filename).parse_module()

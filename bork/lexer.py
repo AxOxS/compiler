@@ -1,7 +1,7 @@
 """Turns a source of text into tokens"""
 from __future__ import annotations
 from dataclasses import dataclass
-from .errors import BorkError, Span
+from .errors import Diagnostic, BorkError, Span
 from .values import MAX_I64
 
 OPERATORS = ["+", "-", "*", "/", "%", "(", ")"]
@@ -22,6 +22,7 @@ class Lexer:
         self.pos = 0
         self.line = 1
         self.col = 1
+        self.diags: list[Diagnostic] = []
 
     # -- character helpers ---------------------------------------------------------------------
     def _peek(self, offset: int = 0) -> str:
@@ -38,8 +39,11 @@ class Lexer:
             self.col += 1
         return ch
 
-    def _error(self, message: str, span: Span):
-        return BorkError(message, span, self.filename)
+    def _span_from(self, line: int, col: int, start: int) -> Span:
+        return Span(line, col, max(1, self.pos - start))
+
+    def _error(self, msg: str, span: Span, note: str | None = None) -> None:
+        self.diags.append(Diagnostic(msg, span, note=note))
 
     # -- main loop -----------------------------------------------------------------------------
     def tokenize(self) -> list[Token]:
@@ -48,8 +52,11 @@ class Lexer:
             self._skip_trivia()
             if self.pos >= len(self.src):
                 tokens.append(Token("eof", None, Span(self.line, self.col, 0)))
-                return tokens
+                break
             tokens.append(self._next_token())
+        if self.diags:
+            raise BorkError(self.diags, self.src, self.filename)
+        return tokens
 
     def _skip_trivia(self) -> None:
         while self.pos < len(self.src):
@@ -76,7 +83,9 @@ class Lexer:
                 return Token(op, op, Span(line, col, len(op)))
 
         self._advance()
-        raise self._error(f"unexpected character {ch!r}", Span(line, col, 1))
+        span = Span(line, col, 1)
+        self._error(f"unexpected character {ch!r}", span)
+        return Token("error", ch, span)
 
     def _number(self, line: int, col: int, start: int) -> Token:
         while self._peek().isdigit():
@@ -85,7 +94,8 @@ class Lexer:
         span = Span(line, col, len(text))
         value = int(text)
         if value > MAX_I64:
-            raise self._error("integer literal does not fit in a 64-bit int", span)
+            self._error("integer literal does not fit in a 64-bit int", span)
+            value = 0
         return Token("int", value, span)
 
 def tokenize(source: str, filename: str = "<input>") -> list[Token]:
