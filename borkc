@@ -4,13 +4,14 @@ import os, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from bork import run_source
+from bork import compile_source, run_source
 from bork.ast_nodes import dump
+from bork.disasm import disassemble
 from bork.errors import BorkError, BorkRuntimeError, render_diagnostics
 from bork.lexer import tokenize
 from bork.parser import parse
 
-USAGE = "usage: borkc {run|ast|tokens} <file.bk>\n"
+USAGE = "usage: borkc {run|dis|ast|tokens} <file.bk>\n"
 
 def _use_color(stream):
     return stream.isatty() and os.environ.get("NO_COLOR") is None
@@ -59,7 +60,15 @@ def cmd_run(path):
         return 70
     return 0
 
-COMMANDS = {"run": cmd_run, "tokens": cmd_tokens, "ast": cmd_ast}
+def cmd_dis(path):
+    source = _read(path)
+    try:
+        sys.stdout.write(disassemble(compile_source(source, path)))
+    except BorkError as exc:
+        return _report(exc)
+    return 0
+
+COMMANDS = {"run": cmd_run, "dis": cmd_dis, "tokens": cmd_tokens, "ast": cmd_ast}
 
 def main(argv):
     if len(argv) == 2 and argv[0] in COMMANDS:
