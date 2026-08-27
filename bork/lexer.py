@@ -4,7 +4,12 @@ from dataclasses import dataclass
 from .errors import Diagnostic, BorkError, Span
 from .values import MAX_I64
 
-OPERATORS = ["+", "-", "*", "/", "%", "(", ")"]
+KEYWORDS = {"true", "false"}
+OPERATORS = [
+    "==", "!=", "<=", ">=",
+    "+", "-", "*", "/", "%", "<", ">", "!",
+    "(", ")"
+]
 
 @dataclass
 class Token:
@@ -75,6 +80,8 @@ class Lexer:
 
         if ch.isdigit():
             return self._number(line, col, start)
+        if ch.isalpha() or ch == "_":
+            return self._word(line, col, start)
 
         for op in OPERATORS:
             if self.src.startswith(op, self.pos):
@@ -87,11 +94,49 @@ class Lexer:
         self._error(f"unexpected character {ch!r}", span)
         return Token("error", ch, span)
 
-    def _number(self, line: int, col: int, start: int) -> Token:
-        while self._peek().isdigit():
+    def _word(self, line: int, col: int, start: int) -> Token:
+        while self._peek().isalnum() or self._peek == "_":
             self._advance()
         text = self.src[start:self.pos]
-        span = Span(line, col, len(text))
+        span = self._span_from(line, col, start)
+        if text in KEYWORDS:
+            return Token(text, text == "true", span)
+        return Token("ident", text, span)
+
+    def _number(self, line: int, col: int, start: int) -> Token:
+        if self._peek() == "0" and self._peek(1) in ("x", "X"):
+            self._advance(); self._advance()
+            digits_start = self.pos
+            while self._peek() and self._peek() in "0123456789abcdefABCDEF_":
+                self._advance()
+            text = self.src[digits_start:self.pos].replace("_", "")
+            span = self._span_from(line, col, start)
+            if not text:
+                self._error("hex literal has no digits", span)
+                return Token("int", 0, span)
+            return Token("int", int(text, 16), span)
+
+        while self._peek().isdigit() or self._peek() == "_":
+            self._advance()
+        is_float = False
+        if self._peek() == "." and self._peek(1).isdigit():
+            is_float = True
+            self._advance()
+            while self._peek().isdigit() or self._peek() == "_":
+                self._advance()
+        if self._peek() in ("e", "E") and (self._peek(1).isdigit()
+                                           or (self._peek(1) in ("+", "-")
+                                               and self._peek(2).isdigit())):
+            is_float = True
+            self._advance()
+            if self._peek() in ("+", "-"):
+                self._advance()
+            while self._peek().isdigit():
+                self._advance()
+        text = self.src[start:self.pos].replace("_", "")
+        span = self._span_from(line, col, start)
+        if is_float:
+            return Token("float", float(text), span)
         value = int(text)
         if value > MAX_I64:
             self._error("integer literal does not fit in a 64-bit int", span)

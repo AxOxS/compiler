@@ -7,6 +7,8 @@ from .lexer import Token, tokenize
 
 # Binary operator precedence
 PRECEDENCE = {
+    "==": 3, "!=": 3,
+    "<": 4, "<=": 4, ">": 4, ">=": 4,
     "+": 5, "-": 5,
     "*": 6, "/": 6, "%": 6
 }
@@ -44,8 +46,10 @@ class Parser:
     def _describe(tok: Token) -> str:
         if tok.kind == "eof":
             return "end of file"
-        if tok.kind == "int":
-            return "int literal"
+        if tok.kind == "ident":
+            return f"identifier '{tok.value}'"
+        if tok.kind in ("int", "float"):
+            return f"{tok.kind} literal"
         return f"'{tok.kind}'"
 
     def _error(self, msg: str, span: Span, note: str | None = None) -> BorkError:
@@ -77,12 +81,14 @@ class Parser:
 
     def unary_expr(self) -> A.Expr:
         tok = self.current
-        if tok.kind == "-":
+        if tok.kind in ("-", "!"):
             self._advance()
             operand = self.unary_expr()
             # Fold "-" into a numeric literal instead of emitting negation
-            if isinstance(operand, A.IntLit):
+            if tok.kind == "-" and isinstance(operand, A.IntLit):
                 return A.IntLit(tok.span.to(operand.span), -operand.value)
+            if tok.kind == "-" and isinstance(operand, A.FloatLit):
+                return A.FloatLit(tok.span.to(operand.span), -operand.value)
             return A.Unary(tok.span.to(operand.span), tok.kind, operand)
         return self.primary_expr()
 
@@ -91,6 +97,12 @@ class Parser:
         if tok.kind == "int":
             self._advance()
             return A.IntLit(tok.span, tok.value)
+        if tok.kind == "float":
+            self._advance()
+            return A.FloatLit(tok.span, tok.value)
+        if tok.kind in ("true", "false"):
+            self._advance()
+            return A.BoolLit(tok.span, tok.value)
         if tok.kind == "(":
             self._advance()
             inner = self.expression()

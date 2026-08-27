@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from bork import compile_source, run_source
 from bork.ast_nodes import dump
 from bork.disasm import disassemble
+from bork.values import to_display
 from bork.errors import BorkError, BorkRuntimeError, render_diagnostics
 from bork.lexer import tokenize
 from bork.parser import parse
@@ -52,7 +53,7 @@ def cmd_ast(path):
 def cmd_run(path):
     source = _read(path)
     try:
-        sys.stdout.write(str(run_source(source, path)) + "\n")
+        sys.stdout.write(to_display(run_source(source, path)) + "\n")
     except BorkError as exc:
         return _report(exc)
     except BorkRuntimeError as exc:

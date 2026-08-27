@@ -3,9 +3,9 @@ from __future__ import annotations
 
 from . import ast_nodes as A
 from .bytecode import Function
-from .opcodes import OPERANDS, WIDTH, Op
+from .opcodes import COMPARE_OPS, OPERANDS, WIDTH, Op
 
-BINARY_OPS = {"+": Op.ADD, "-": Op.SUB, "*": Op.MUL, "/": Op.DIV, "%": Op.MOD}
+ARITH_OPS = {"+": Op.ADD, "-": Op.SUB, "*": Op.MUL, "/": Op.DIV, "%": Op.MOD}
 
 class FunctionEmitter:
     def __init__(self, name: str):
@@ -22,10 +22,11 @@ class FunctionEmitter:
         return offset
 
     def constant(self, value) -> int:
-        if value not in self.const_index:
-            self.const_index[value] = len(self.fn.consts)
+        key = (type(value).__name__, value)
+        if key not in self.const_index:
+            self.const_index[key] = len(self.fn.consts)
             self.fn.consts.append(value)
-        return self.const_index[value]
+        return self.const_index[key]
 
     def emit_const(self, value) -> None:
         self.emit(Op.CONST, self.constant(value))
@@ -46,14 +47,20 @@ class Compiler:
     def _expr_IntLit(self, node: A.IntLit) -> None:
         self.e.emit_const(node.value)
 
+    def _expr_FloatLit(self, node: A.FloatLit) -> None:
+        self.e.emit_const(node.value)
+
+    def _expr_BoolLit(self, node: A.BoolLit) -> None:
+        self.e.emit(Op.TRUE if node.value else Op.FALSE)
+
     def _expr_Unary(self, node: A.Unary) -> None:
         self.expr(node.operand)
-        self.e.emit(Op.NEG)
+        self.e.emit(Op.NOT if node.op == "!" else Op.NEG)
 
     def _expr_Binary(self, node: A.Binary) -> None:
         self.expr(node.left)
         self.expr(node.right)
-        self.e.emit(BINARY_OPS[node.op])
+        self.e.emit(COMPARE_OPS[node.op] if node.op in COMPARE_OPS else ARITH_OPS[node.op])
 
 def compile_module(module: A.Module) -> Function:
     return Compiler().compile_module(module)
