@@ -14,8 +14,8 @@ from .parser import parse
 from .vm import VM
 
 __version__ = "0.0.1"
-__all__ = {"compile_source", "run_source", "tokenize", "parse", "compile_module",
-           "disassemble", "Function", "VM", "BorkError", "BorkRuntimeError"}
+__all__ = ["compile_source", "run_source", "tokenize", "parse", "compile_module",
+           "disassemble", "Function", "VM", "BorkError", "BorkRuntimeError"]
 
 def compile_source(source: str, filename: str = "<input>") -> Function:
    """Run the pipeline"""
